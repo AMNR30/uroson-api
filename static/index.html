@@ -86,7 +86,7 @@
   .field .hint{ font-size:11.5px; color: var(--ink-soft); margin-top:5px; }
   .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
 
-  input[type=text], input[type=number], input[type=date]{
+  input[type=text], input[type=number], input[type=date], input[type=datetime-local]{
     width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--line);
     font-family:'IBM Plex Sans', sans-serif; font-size:14px; color:var(--ink);
     background:#FCFEFD; transition: border-color .15s, box-shadow .15s;
@@ -125,6 +125,9 @@
   .foot-note code{
     background:#EEF4F2; padding:1px 5px; border-radius:5px; font-family:'IBM Plex Mono', monospace;
   }
+
+  /* Kolom pengaturan API */
+  input#apiBase, input#apiKey{ font-family:'IBM Plex Mono', monospace; font-size:13px; letter-spacing:.01em; }
 </style>
 </head>
 <body>
@@ -177,6 +180,12 @@
         </div>
       </div>
 
+      <div class="field">
+        <label for="filledAt">Waktu Pengisian Form</label>
+        <input type="datetime-local" id="filledAt" name="filledAt" step="1" required />
+        <div class="hint">Terisi otomatis dengan waktu saat ini — silakan ubah manual jika perlu (tanggal &amp; jam).</div>
+      </div>
+
       <div class="section-label">Fasilitas &amp; Tenaga Medis</div>
       <div class="row2">
         <div class="field">
@@ -189,6 +198,18 @@
         </div>
       </div>
 
+      <div class="section-label">Pengaturan Server (API)</div>
+      <div class="field">
+        <label for="apiBase">Alamat API</label>
+        <input type="text" id="apiBase" placeholder="mis. https://web-production-565c4.up.railway.app" autocomplete="off" spellcheck="false" />
+        <div class="hint">Kosongkan untuk memakai server yang sama dengan halaman ini. Tersimpan otomatis di browser.</div>
+      </div>
+      <div class="field">
+        <label for="apiKey">API Key <span style="font-weight:400;color:var(--ink-soft)">(opsional)</span></label>
+        <input type="text" id="apiKey" placeholder="isi jika backend mengaktifkan API_KEY" autocomplete="off" spellcheck="false" />
+        <div class="hint">Harus sama persis dengan variabel <code>API_KEY</code> di Railway. Kosongkan jika tidak dipakai.</div>
+      </div>
+
       <div class="submit-row">
         <button type="submit" class="primary" id="btnSubmit">Simpan ke Server</button>
         <span class="status" id="statusMsg"></span>
@@ -196,16 +217,48 @@
 
       <div class="foot-note">
         Endpoint ini menulis ke <code>POST /api/patients</code>. UROSON membaca data pasien lewat
-        <code>GET /api/patients/{'{'}patientid{'}'}</code> — form ini tidak pernah menghapus data lama.
+        <code>GET /api/patients/&#123;patientid&#125;</code> — form ini tidak pernah menghapus data lama.
       </div>
     </form>
   </div>
 </div>
 
 <script>
-  // Jika backend Anda mengaktifkan API_KEY (lihat Railway Variables),
-  // isi nilai yang sama persis di sini. Kosongkan jika tidak dipakai.
-  const API_KEY = "";
+  // ------------------------------------------------------------------
+  // Pengaturan API (bisa diedit lewat kolom "Pengaturan Server" di form,
+  // tersimpan otomatis di localStorage browser)
+  // ------------------------------------------------------------------
+  const apiBaseInput = document.getElementById('apiBase');
+  const apiKeyInput  = document.getElementById('apiKey');
+
+  apiBaseInput.value = localStorage.getItem('uroson_api_base') || '';
+  apiKeyInput.value  = localStorage.getItem('uroson_api_key')  || '';
+
+  apiBaseInput.addEventListener('input', () =>
+    localStorage.setItem('uroson_api_base', apiBaseInput.value.trim()));
+  apiKeyInput.addEventListener('input', () =>
+    localStorage.setItem('uroson_api_key', apiKeyInput.value.trim()));
+
+  function apiUrl(path){
+    // Kosong = pakai origin halaman ini (relatif). Jika diisi, buang "/" di ujung.
+    const base = apiBaseInput.value.trim().replace(/\/+$/, '');
+    return base ? base + path : path;
+  }
+
+  // ------------------------------------------------------------------
+  // Waktu pengisian: terisi otomatis dengan waktu sekarang,
+  // tetapi bisa diubah manual oleh pengguna.
+  // ------------------------------------------------------------------
+  const filledAtInput = document.getElementById('filledAt');
+
+  function nowLocalValue(){
+    const now = new Date();
+    now.setSeconds(now.getSeconds(), 0);
+    // Konversi ke format datetime-local (YYYY-MM-DDTHH:MM:SS) dalam waktu lokal
+    const offsetMs = now.getTimezoneOffset() * 60000;
+    return new Date(now - offsetMs).toISOString().slice(0, 19);
+  }
+  filledAtInput.value = nowLocalValue();
 
   const form = document.getElementById('patientForm');
   const statusMsg = document.getElementById('statusMsg');
@@ -235,10 +288,12 @@
       gender: gender,
       hospital_name: document.getElementById('hospital_name').value.trim(),
       doctor_name: document.getElementById('doctor_name').value.trim(),
+      // Waktu pengisian dari input yang bisa diedit user (YYYY-MM-DDTHH:MM:SS)
+      filled_at: filledAtInput.value,
     };
 
-    if (!payload.name || !payload.dob || Number.isNaN(payload.patientid)) {
-      setStatus('Lengkapi ID Pasien, Nama, dan Tanggal Lahir terlebih dahulu.', 'err');
+    if (!payload.name || !payload.dob || !payload.filled_at || Number.isNaN(payload.patientid)) {
+      setStatus('Lengkapi ID Pasien, Nama, Tanggal Lahir, dan Waktu Pengisian terlebih dahulu.', 'err');
       return;
     }
 
@@ -247,9 +302,10 @@
 
     try {
       const headers = { 'Content-Type': 'application/json' };
-      if (API_KEY) headers['x-api-key'] = API_KEY;
+      const apiKey = apiKeyInput.value.trim();
+      if (apiKey) headers['x-api-key'] = apiKey;
 
-      const res = await fetch('/api/patients', {
+      const res = await fetch(apiUrl('/api/patients'), {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
@@ -260,6 +316,7 @@
       if (res.ok && body.status) {
         setStatus('Data pasien tersimpan. Siap dibaca UROSON.', 'ok');
         form.reset();
+        filledAtInput.value = nowLocalValue();
         gender = "M";
         [...genderSeg.children].forEach(b => b.setAttribute('aria-pressed', b.dataset.value === 'M'));
       } else {
