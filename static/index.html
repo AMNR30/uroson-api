@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portal Data Pasien — UROSON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F4F8F7;
+    --card: #FFFFFF;
+    --ink: #16221F;
+    --ink-soft: #5B6B67;
+    --teal: #0F6E5D;
+    --teal-deep: #0B4F43;
+    --amber: #D89B3D;
+    --line: #DCE7E4;
+    --error: #C4432B;
+    --radius: 14px;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 500px at 15% -10%, #E4F1EC 0%, transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding: 48px 20px;
+  }
+  .wrap{ width:100%; max-width: 640px; }
+
+  .brand{
+    display:flex; align-items:center; gap:10px; margin-bottom:22px;
+  }
+  .brand-mark{
+    width:34px; height:34px; border-radius:9px; background:var(--teal-deep);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .brand-name{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:15px; letter-spacing:.02em; }
+  .brand-sub{ font-size:12px; color:var(--ink-soft); }
+
+  .card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(15,45,38,.04), 0 12px 30px -18px rgba(15,45,38,.18);
+    overflow:hidden;
+  }
+
+  .flow-header{
+    position:relative; padding: 26px 28px 18px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #FBFDFC 0%, #FFFFFF 100%);
+  }
+  .flow-header h1{
+    font-family:'Space Grotesk', sans-serif; font-size: 21px; margin:0 0 4px; letter-spacing:-.01em;
+  }
+  .flow-header p{ margin:0; font-size:13px; color:var(--ink-soft); }
+  .flow-svg{ width:100%; height:34px; margin-top:14px; display:block; }
+  .flow-svg path{
+    fill:none; stroke:var(--teal); stroke-width:2; stroke-linecap:round;
+    stroke-dasharray: 340; stroke-dashoffset: 340;
+    animation: draw 1.6s ease-out forwards .15s;
+  }
+  @media (prefers-reduced-motion: reduce){ .flow-svg path{ animation:none; stroke-dashoffset:0; } }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+
+  form{ padding: 24px 28px 28px; }
+
+  .section-label{
+    font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    color: var(--teal-deep); margin: 22px 0 12px;
+  }
+  .section-label:first-child{ margin-top:0; }
+
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block; font-size:13px; font-weight:500; color: var(--ink); margin-bottom:6px;
+  }
+  .field .hint{ font-size:11.5px; color: var(--ink-soft); margin-top:5px; }
+  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+
+  input[type=text], input[type=number], input[type=date]{
+    width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--line);
+    font-family:'IBM Plex Sans', sans-serif; font-size:14px; color:var(--ink);
+    background:#FCFEFD; transition: border-color .15s, box-shadow .15s;
+  }
+  input#patientid{ font-family:'IBM Plex Mono', monospace; letter-spacing:.02em; }
+  input:focus{
+    outline:none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15,110,93,.12);
+  }
+  input.invalid{ border-color: var(--error); }
+
+  .segmented{ display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+  .segmented button{
+    flex:1; padding:10px 0; border:none; background:#FCFEFD; font-family:'IBM Plex Sans';
+    font-size:13.5px; font-weight:500; color:var(--ink-soft); cursor:pointer; transition:.15s;
+  }
+  .segmented button + button{ border-left:1px solid var(--line); }
+  .segmented button[aria-pressed="true"]{ background: var(--teal); color:#fff; }
+
+  .submit-row{ margin-top:24px; display:flex; align-items:center; gap:14px; }
+  button.primary{
+    background: var(--teal); color:#fff; border:none; padding:12px 22px; border-radius:9px;
+    font-family:'IBM Plex Sans'; font-size:14.5px; font-weight:600; cursor:pointer;
+    transition: background .15s, transform .1s;
+  }
+  button.primary:hover{ background: var(--teal-deep); }
+  button.primary:active{ transform: translateY(1px); }
+  button.primary:disabled{ background:#9FB8B2; cursor:not-allowed; }
+
+  .status{ font-size:13px; }
+  .status.ok{ color: var(--teal-deep); }
+  .status.err{ color: var(--error); }
+
+  .foot-note{
+    margin-top:18px; font-size:11.5px; color: var(--ink-soft); line-height:1.5;
+  }
+  .foot-note code{
+    background:#EEF4F2; padding:1px 5px; border-radius:5px; font-family:'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="brand-mark">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 14c2-6 4-9 6-9s3 9 5 9 2-5 4-5 2 3 3 3" stroke="#EAF5F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div>
+      <div class="brand-name">UROSON</div>
+      <div class="brand-sub">Portal Data Pasien</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="flow-header">
+      <h1>Buat data pasien baru</h1>
+      <p>Data yang disimpan di sini akan langsung terbaca oleh perangkat UROSON di ruang pemeriksaan.</p>
+      <svg class="flow-svg" viewBox="0 0 400 34" preserveAspectRatio="none">
+        <path d="M0 28 C 40 28, 55 6, 90 6 S 150 30, 190 30 S 250 4, 300 8 S 370 26, 400 20" />
+      </svg>
+    </div>
+
+    <form id="patientForm" novalidate>
+      <div class="section-label">Identitas Pasien</div>
+
+      <div class="field">
+        <label for="patientid">ID Pasien</label>
+        <input type="number" id="patientid" name="patientid" placeholder="mis. 1235" autocomplete="off" required />
+        <div class="hint">ID ini yang nanti dimasukkan/discan di UROSON untuk memanggil data pasien.</div>
+      </div>
+
+      <div class="field">
+        <label for="name">Nama Lengkap</label>
+        <input type="text" id="name" name="name" required />
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Jenis Kelamin</label>
+          <div class="segmented" id="genderSeg">
+            <button type="button" data-value="M" aria-pressed="true">Male</button>
+            <button type="button" data-value="F" aria-pressed="false">Female</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="dob">Tanggal Lahir</label>
+          <input type="date" id="dob" name="dob" required />
+        </div>
+      </div>
+
+      <div class="section-label">Fasilitas &amp; Tenaga Medis</div>
+      <div class="row2">
+        <div class="field">
+          <label for="hospital_name">Rumah Sakit</label>
+          <input type="text" id="hospital_name" name="hospital_name" placeholder="opsional" />
+        </div>
+        <div class="field">
+          <label for="doctor_name">Dokter</label>
+          <input type="text" id="doctor_name" name="doctor_name" placeholder="opsional" />
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button type="submit" class="primary" id="btnSubmit">Simpan ke Server</button>
+        <span class="status" id="statusMsg"></span>
+      </div>
+
+      <div class="foot-note">
+        Endpoint ini menulis ke <code>POST /api/patients</code>. UROSON membaca data pasien lewat
+        <code>GET /api/patients/{'{'}patientid{'}'}</code> — form ini tidak pernah menghapus data lama.
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Jika backend Anda mengaktifkan API_KEY (lihat Railway Variables),
+  // isi nilai yang sama persis di sini. Kosongkan jika tidak dipakai.
+  const API_KEY = "";
+
+  const form = document.getElementById('patientForm');
+  const statusMsg = document.getElementById('statusMsg');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const genderSeg = document.getElementById('genderSeg');
+  let gender = "M";
+
+  genderSeg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    gender = btn.dataset.value;
+    [...genderSeg.children].forEach(b => b.setAttribute('aria-pressed', b === btn));
+  });
+
+  function setStatus(text, kind){
+    statusMsg.textContent = text;
+    statusMsg.className = 'status ' + (kind || '');
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      patientid: parseInt(document.getElementById('patientid').value, 10),
+      name: document.getElementById('name').value.trim(),
+      dob: document.getElementById('dob').value,
+      gender: gender,
+      hospital_name: document.getElementById('hospital_name').value.trim(),
+      doctor_name: document.getElementById('doctor_name').value.trim(),
+    };
+
+    if (!payload.name || !payload.dob || Number.isNaN(payload.patientid)) {
+      setStatus('Lengkapi ID Pasien, Nama, dan Tanggal Lahir terlebih dahulu.', 'err');
+      return;
+    }
+
+    btnSubmit.disabled = true;
+    setStatus('Menyimpan…', '');
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (API_KEY) headers['x-api-key'] = API_KEY;
+
+      const res = await fetch('/api/patients', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const body = await res.json().catch(() => ({}));
+
+      if (res.ok && body.status) {
+        setStatus('Data pasien tersimpan. Siap dibaca UROSON.', 'ok');
+        form.reset();
+        gender = "M";
+        [...genderSeg.children].forEach(b => b.setAttribute('aria-pressed', b.dataset.value === 'M'));
+      } else {
+        setStatus(body.message || `Gagal menyimpan (status ${res.status}).`, 'err');
+      }
+    } catch (err) {
+      setStatus('Tidak dapat menghubungi server. Periksa koneksi.', 'err');
+    } finally {
+      btnSubmit.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
