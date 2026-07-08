@@ -97,6 +97,17 @@
   }
   input.invalid{ border-color: var(--error); }
 
+  /* Baris ID Pasien + tombol ambil dari server */
+  .id-row{ display:flex; gap:10px; align-items:stretch; }
+  .id-row input{ flex:1; }
+  button.ghost{
+    flex-shrink:0; padding:0 16px; border-radius:9px; border:1px solid var(--teal);
+    background:#FFFFFF; color: var(--teal-deep); font-family:'IBM Plex Sans'; font-size:13px;
+    font-weight:600; cursor:pointer; white-space:nowrap; transition:.15s;
+  }
+  button.ghost:hover{ background:#EAF5F2; }
+  button.ghost:disabled{ opacity:.55; cursor:not-allowed; }
+
   .segmented{ display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
   .segmented button{
     flex:1; padding:10px 0; border:none; background:#FCFEFD; font-family:'IBM Plex Sans';
@@ -127,7 +138,7 @@
   }
 
   /* Kolom pengaturan API */
-  input#apiBase, input#apiKey{ font-family:'IBM Plex Mono', monospace; font-size:13px; letter-spacing:.01em; }
+  input#apiBase{ font-family:'IBM Plex Mono', monospace; font-size:13px; letter-spacing:.01em; }
 </style>
 </head>
 <body>
@@ -145,8 +156,8 @@
 
   <div class="card">
     <div class="flow-header">
-      <h1>Buat data pasien baru</h1>
-      <p>Data yang disimpan di sini akan langsung terbaca oleh perangkat UROSON di ruang pemeriksaan.</p>
+      <h1>Buat / Ambil data pasien</h1>
+      <p>Data yang disimpan di sini akan langsung terbaca oleh perangkat UROSON di ruang pemeriksaan. Kamu juga bisa mengambil data pasien dari server API mana pun (asal formatnya sama).</p>
       <svg class="flow-svg" viewBox="0 0 400 34" preserveAspectRatio="none">
         <path d="M0 28 C 40 28, 55 6, 90 6 S 150 30, 190 30 S 250 4, 300 8 S 370 26, 400 20" />
       </svg>
@@ -157,8 +168,11 @@
 
       <div class="field">
         <label for="patientid">ID Pasien</label>
-        <input type="number" id="patientid" name="patientid" placeholder="mis. 1235" autocomplete="off" required />
-        <div class="hint">ID ini yang nanti dimasukkan/discan di UROSON untuk memanggil data pasien.</div>
+        <div class="id-row">
+          <input type="number" id="patientid" name="patientid" placeholder="mis. 1235" autocomplete="off" required />
+          <button type="button" class="ghost" id="btnFetch">Ambil dari Server</button>
+        </div>
+        <div class="hint">ID ini yang nanti dimasukkan/discan di UROSON untuk memanggil data pasien. Klik "Ambil dari Server" untuk mengisi form otomatis dari data yang sudah ada.</div>
       </div>
 
       <div class="field">
@@ -202,12 +216,7 @@
       <div class="field">
         <label for="apiBase">Alamat API</label>
         <input type="text" id="apiBase" placeholder="mis. https://web-production-565c4.up.railway.app" autocomplete="off" spellcheck="false" />
-        <div class="hint">Kosongkan untuk memakai server yang sama dengan halaman ini. Tersimpan otomatis di browser.</div>
-      </div>
-      <div class="field">
-        <label for="apiKey">API Key <span style="font-weight:400;color:var(--ink-soft)">(opsional)</span></label>
-        <input type="text" id="apiKey" placeholder="isi jika backend mengaktifkan API_KEY" autocomplete="off" spellcheck="false" />
-        <div class="hint">Harus sama persis dengan variabel <code>API_KEY</code> di Railway. Kosongkan jika tidak dipakai.</div>
+        <div class="hint">Kosongkan untuk memakai server yang sama dengan halaman ini. Dipakai untuk mengambil (GET) maupun menyimpan (POST) data pasien — server tujuan cukup mengikuti format kontrak <code>{"status": true/false, "data": {...}}</code>. Kunci akses (API key) terkirim otomatis di balik layar, tidak perlu diisi manual. Alamat API tersimpan otomatis di browser.</div>
       </div>
 
       <div class="submit-row">
@@ -216,8 +225,9 @@
       </div>
 
       <div class="foot-note">
-        Endpoint ini menulis ke <code>POST /api/patients</code>. UROSON membaca data pasien lewat
-        <code>GET /api/patients/&#123;patientid&#125;</code> — form ini tidak pernah menghapus data lama.
+        Tombol "Ambil dari Server" memanggil <code>GET /api/patients/&#123;patientid&#125;</code> ke Alamat API di atas
+        dan mengisi form otomatis jika data ditemukan. Tombol "Simpan ke Server" menulis ke <code>POST /api/patients</code> —
+        form ini tidak pernah menghapus data lama.
       </div>
     </form>
   </div>
@@ -226,18 +236,28 @@
 <script>
   // ------------------------------------------------------------------
   // Pengaturan API (bisa diedit lewat kolom "Pengaturan Server" di form,
-  // tersimpan otomatis di localStorage browser)
+  // tersimpan otomatis di localStorage browser). Dipakai untuk GET (ambil)
+  // maupun POST (simpan) data pasien.
   // ------------------------------------------------------------------
   const apiBaseInput = document.getElementById('apiBase');
-  const apiKeyInput  = document.getElementById('apiKey');
 
   apiBaseInput.value = localStorage.getItem('uroson_api_base') || '';
-  apiKeyInput.value  = localStorage.getItem('uroson_api_key')  || '';
 
   apiBaseInput.addEventListener('input', () =>
     localStorage.setItem('uroson_api_base', apiBaseInput.value.trim()));
-  apiKeyInput.addEventListener('input', () =>
-    localStorage.setItem('uroson_api_key', apiKeyInput.value.trim()));
+
+  // ------------------------------------------------------------------
+  // API_KEY tertanam langsung di kode (tidak ditampilkan di form).
+  // Harus SAMA PERSIS dengan variabel API_KEY di Railway dan di kode
+  // aplikasi desktop UROSON (baris 44, new4_UROSON_..._API.py).
+  // ------------------------------------------------------------------
+  const API_KEY = "uroson-2026";
+
+  function apiHeaders(extra){
+    const headers = Object.assign({}, extra);
+    if (API_KEY) headers['x-api-key'] = API_KEY;
+    return headers;
+  }
 
   function apiUrl(path){
     // Kosong = pakai origin halaman ini (relatif). Jika diisi, buang "/" di ujung.
@@ -263,6 +283,7 @@
   const form = document.getElementById('patientForm');
   const statusMsg = document.getElementById('statusMsg');
   const btnSubmit = document.getElementById('btnSubmit');
+  const btnFetch = document.getElementById('btnFetch');
   const genderSeg = document.getElementById('genderSeg');
   let gender = "M";
 
@@ -273,11 +294,60 @@
     [...genderSeg.children].forEach(b => b.setAttribute('aria-pressed', b === btn));
   });
 
+  function setGender(value){
+    gender = value;
+    [...genderSeg.children].forEach(b => b.setAttribute('aria-pressed', b.dataset.value === value));
+  }
+
   function setStatus(text, kind){
     statusMsg.textContent = text;
     statusMsg.className = 'status ' + (kind || '');
   }
 
+  // ------------------------------------------------------------------
+  // Ambil data pasien dari API (GET /api/patients/{id}) — bisa dari server
+  // mana pun, asal ikut format kontrak {"status": true/false, "data": {...}}
+  // ------------------------------------------------------------------
+  btnFetch.addEventListener('click', async () => {
+    const pid = document.getElementById('patientid').value.trim();
+
+    if (!pid) {
+      setStatus('Isi ID Pasien (angka) dulu sebelum mengambil dari server.', 'err');
+      return;
+    }
+
+    btnFetch.disabled = true;
+    setStatus('Mengambil data…', '');
+
+    try {
+      const res = await fetch(apiUrl(`/api/patients/${encodeURIComponent(pid)}`), {
+        method: 'GET',
+        headers: apiHeaders({ 'Content-Type': 'application/json' }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+
+      if (res.ok && body.status && body.data) {
+        const data = body.data;
+        document.getElementById('name').value = data.name || '';
+        if (data.dob) document.getElementById('dob').value = data.dob;
+        if (data.gender === 'M' || data.gender === 'F') setGender(data.gender);
+        document.getElementById('hospital_name').value = data.hospital_name || '';
+        document.getElementById('doctor_name').value = data.doctor_name || '';
+        setStatus('Data pasien ditemukan dan diisi otomatis.', 'ok');
+      } else {
+        setStatus(body.message || 'Data pasien tidak ditemukan di server.', 'err');
+      }
+    } catch (err) {
+      setStatus('Tidak dapat menghubungi server. Periksa Alamat API & koneksi.', 'err');
+    } finally {
+      btnFetch.disabled = false;
+    }
+  });
+
+  // ------------------------------------------------------------------
+  // Simpan data pasien ke API (POST /api/patients)
+  // ------------------------------------------------------------------
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -301,13 +371,9 @@
     setStatus('Menyimpan…', '');
 
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      const apiKey = apiKeyInput.value.trim();
-      if (apiKey) headers['x-api-key'] = apiKey;
-
       const res = await fetch(apiUrl('/api/patients'), {
         method: 'POST',
-        headers,
+        headers: apiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -317,8 +383,7 @@
         setStatus('Data pasien tersimpan. Siap dibaca UROSON.', 'ok');
         form.reset();
         filledAtInput.value = nowLocalValue();
-        gender = "M";
-        [...genderSeg.children].forEach(b => b.setAttribute('aria-pressed', b.dataset.value === 'M'));
+        setGender('M');
       } else {
         setStatus(body.message || `Gagal menyimpan (status ${res.status}).`, 'err');
       }
